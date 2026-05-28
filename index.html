@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px;
+    -webkit-user-select: none; user-select: none;
+  }
+  input[type="text"], textarea, select { -webkit-user-select: text; user-select: text; }
+  
+  .card { background: #fff; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); width: 100%; max-width: 600px; overflow: hidden; }
+  .card-header { background: linear-gradient(135deg, #667eea, #764ba2); padding: 32px 32px 28px; text-align: center; color: white; }
+  .card-header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  .card-header p { font-size: 14px; opacity: 0.85; }
+  .card-body { padding: 32px; }
+  .steps { display: flex; align-items: center; justify-content: center; margin-bottom: 28px; }
+  .step-dot { width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8; color: #aaa; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .step-dot.active { background: #667eea; color: white; }
+  .step-dot.done { background: #10b981; color: white; }
+  .step-line { flex: 1; height: 2px; background: #e8e8e8; max-width: 60px; }
+  .step-line.done { background: #10b981; }
+  .step-label { font-size: 11px; color: #aaa; text-align: center; margin-top: 4px; }
+  .step-wrap { display: flex; flex-direction: column; align-items: center; }
+  .label { font-size: 14px; font-weight: 600; color: #444; margin-bottom: 8px; display: block; }
+  input[type="text"], textarea { width: 100%; padding: 13px 16px; border: 2px solid #e8e8e8; border-radius: 12px; font-size: 15px; color: #333; outline: none; background: #fafafa; margin-bottom: 20px; }
+  input[type="text"]:focus, textarea:focus { border-color: #667eea; background: #fff; }
+  
+  .btn-primary { width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .btn-success { width: 100%; padding: 18px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-size: 17px; font-weight: 700; cursor: pointer; }
+  
+  .btn-excel {
+    width: 100%; padding: 18px; background: #ffffff; color: #10b981; 
+    border: 2px solid #10b981; border-radius: 12px; font-size: 17px; 
+    font-weight: 700; cursor: pointer; transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-excel:hover { background: #f0fdf4; }
+  .btn-excel i { font-size: 20px; }
+
+  .btn-ghost { background: none; border: 2px solid #e8e8e8; border-radius: 12px; padding: 14px 18px; font-size: 15px; color: #666; cursor: pointer; font-weight: 600; width: 100%; }
+  .q-item { border: 2px solid #e8e8e8; border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; background: #fff; cursor: pointer; }
+  .q-item.selected { border-color: #667eea; background: #faf8ff; }
+  .q-top { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+  .q-checkbox { width: 20px; height: 20px; border: 2px solid #ccc; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .q-item.selected .q-checkbox { background: #667eea; border-color: #667eea; color: white; }
+  .q-text { font-size: 14px; line-height: 1.6; color: #333; flex: 1; text-align: left; }
+  
+  .preview-card { border: 2px solid #e8e8e8; border-radius: 16px; padding: 18px; margin-bottom: 15px; background: #fff; text-align: left; position: relative; }
+  .preview-card.dragging { opacity: 0.4; transform: scale(0.98); border-style: dashed; background: #f1f5f9; }
+  .preview-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee; }
+  .q-number-title { font-size: 14px; font-weight: 700; color: #333; }
+  .btn-delete { background: #fee2e2; color: #ef4444; border: none; padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
+  
+  .drag-handle { font-size: 12px; color: #764ba2; font-weight: 700; cursor: grab; background: #f1f5f9; padding: 8px 14px; border-radius: 8px; touch-action: none; -webkit-user-select: none; user-select: none; }
+  .drag-handle:active { cursor: grabbing; background: #ede9fe; }
+  
+  .preview-label { font-size: 11px; color: #667eea; font-weight: 700; margin-bottom: 5px; display: block; }
+  .preview-card select { width: 100%; padding: 8px; border-radius: 10px; border: 2px solid #eee; font-size: 13px; margin-bottom: 15px; background: #fff; }
+  .btn-add-question { width: 100%; padding: 14px; margin-bottom: 25px; background: #f8fafc; color: #667eea; border: 2px dashed #cbd5e1; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .loader { display: none; text-align: center; padding: 20px 0; color: #667eea; }
+  .spinner { width: 36px; height: 36px; border: 3px solid #e8e8e8; border-top-color: #667eea; border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <h1>🧠 에디 설문 에이전트</h1>
+    <p>AI가 분석하고 사용자가 직접 다듬는 완벽한 설문지</p>
+  </div>
+  <div class="card-body">
+    
+    <div class="steps">
+      <div class="step-wrap"><div class="step-dot active" id="sd1">1</div><div class="step-label">설정</div></div>
+      <div class="step-line" id="sl1"></div>
+      <div class="step-wrap"><div class="step-dot" id="sd2">2</div><div class="step-label">문항 선택</div></div>
+      <div class="step-line" id="sl2"></div>
+      <div class="step-wrap"><div class="step-dot" id="sd3">3</div><div class="step-label">완료</div></div>
+    </div>
+
+    <div id="step1">
+      <div style="text-align:left;">
+        <label class="label">🏢 1. 설문 대주제 입력 (선택)</label>
+        <input type="text" id="topic" placeholder="예: 임직원 건강 관리, 조직 만족도...">
+        <label class="label">🏷️ 2. 추가 카테고리 (선택)</label>
+        <input type="text" id="category" placeholder="예: 운동 실천도, 수면의 질...">
+        <label class="label" style="color: #764ba2;">✍️ 3. 기존 문항 리스트 또는 고도화 아이디어 입력</label>
+        <textarea id="ideaInput" placeholder="여기에 기존에 쓰시던 질문들이나 초안 질문 리스트를 편하게 붙여넣어 주세요. 에디가 완벽한 전문 서베이 도구로 리팩토링해 줍니다."></textarea>
+      </div>
+      <button class="btn-primary" id="searchBtn">✨ 명품 문항 추천받기</button>
+    </div>
+
+    <div class="loader" id="loader"><div class="spinner"></div><div id="loaderText">제시된 문항 분석 및 고도화 중...</div></div>
+
+    <div id="step2" style="display: none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3>고도화된 추천 문항을 선택해 주세요</h3>
+        <span id="selCount" style="font-size:12px; background:#ede9fe; color:#667eea; font-weight:700; padding:3px 10px; border-radius:20px;">0개 선택</span>
+      </div>
+      <div id="qList"></div>
+      
+      <button class="btn-ghost" id="nextPageBtn" style="margin-top:10px; margin-bottom:10px;">🔄 새로운 문항 10개 더 불러오기</button>
+      
+      <div class="divider"></div>
+      <button class="btn-primary" id="goPreviewBtn">📋 선택 문항 편집/순서 변경하기 →</button>
+    </div>
+
+    <div id="stepPreview" style="display: none;">
+      <div style="text-align:left; margin-bottom:20px;">
+        <h3 style="font-size: 17px; margin-bottom:5px;">📝 문항 검토 및 편집</h3>
+        <p style="font-size: 12px; color: #777;">우측 '☰ 순서 이동' 핸들을 길게 누른 채로 끌어올리거나 내리면 화면이 자동으로 스크롤되며 순서가 바뀝니다.</p>
+      </div>
+      <div id="previewList"></div>
+      <button class="btn-add-question" id="addBlankQBtn">➕ 새로운 문항 직접 추가하기</button>
+      <div class="divider"></div>
+      <div style="text-align:left;">
+        <label class="label">📝 최종 설문지 제목</label>
+        <input type="text" id="formTitleFinal" placeholder="AI 맞춤형 진단 설문지">
+      </div>
+      
+      <div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:12px; align-items: center;">
+        <div style="flex:1;"><button class="btn-ghost" id="backToSelectBtn">← 다시 선택</button></div>
+        <div style="flex:2;"><button class="btn-excel" id="downloadExcelBtn"><i class="fa-solid fa-file-excel"></i> 엑셀 파일로 받기</button></div>
+      </div>
+      
+      <button class="btn-success" id="finalizeBtn">🚀 구글 폼 최종 만들기</button>
+    </div>
+
+    <div id="step3" style="display:none">
+      <div style="text-align:center; padding:20px 0;">
+        <div style="font-size:48px; margin-bottom:12px;">🎉</div>
+        <h3>설문지가 완성됐어요!</h3>
+        <p style="margin-bottom:20px;">구글 드라이브에 저장되었습니다.</p>
+        <a id="formLink" href="#" target="_blank" style="display:inline-block; padding:14px 32px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border-radius:12px; font-weight:700; text-decoration:none;">설문지 열기 →</a>
+        <br><button class="btn-ghost" id="resetBtn" style="margin-top:15px">+ 새 설문지 만들기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /*********************************************************
+   * Cloudflare Pages 전용 프론트 스크립트
+   * 1) 아래 GAS_URL만 본인의 GAS 웹앱 /exec URL로 변경
+   * 2) 기존 google.script.run은 전부 fetch 기반 callGas로 대체
+   *********************************************************/
+  const GAS_URL = "여기에_GAS_웹앱_EXEC_URL_붙여넣기";
+
+  var rawQuestions = [];
+  var selectedQuestions = [];
+  var selectedKeys = {};
+  var dragScrollInterval = null;
+  var allSeenQuestions = [];
+
+  async function callGas(action, payload) {
+    const response = await fetch(GAS_URL, {
+      method: "POST",
+      // GAS에서 CORS/preflight 꼬임 줄이려고 Content-Type은 일부러 지정하지 않습니다.
+      body: JSON.stringify({ action, ...payload }),
+      redirect: "follow"
+    });
+
+    const text = await response.text();
+
+    try {
+      const json = JSON.parse(text);
+      if (!json.success) {
+        throw new Error(json.message || "GAS 처리 중 오류가 발생했습니다.");
+      }
+      return json;
+    } catch (error) {
+      console.error("GAS raw response:", text);
+      throw error;
+    }
+  }
+
+  function getQuestionKey(raw) {
+    return String(raw || "").split("|")[0].trim();
+  }
+
+  function setLoading(message) {
+    setStep(0);
+    showLoader(message);
+  }
+
+  function stopLoading() {
+    hideLoader();
+  }
+
+  document.getElementById('searchBtn').onclick = async function() {
+    var t = document.getElementById('topic').value.trim();
+    var c = document.getElementById('category').value.trim();
+    var id = document.getElementById('ideaInput').value.trim();
+
+    if (!id && !t) {
+      alert('최소한 3번 칸에 기존 문항을 넣거나 대주제를 적어주세요!');
+      return;
+    }
+
+    allSeenQuestions = [];
+    rawQuestions = [];
+    selectedQuestions = [];
+    selectedKeys = {};
+
+    setLoading('제시된 문항 분석 및 고도화 중...');
+
+    try {
+      const result = await callGas("fetchQuestionCandidates", {
+        topic: t,
+        category: c,
+        managerIdea: id,
+        excludeQuestions: []
+      });
+
+      stopLoading();
+
+      const qs = result.data || [];
+      if (qs.length > 0 && !String(qs[0]).includes("생성하지 못했습니다")) {
+        rawQuestions = qs;
+        allSeenQuestions = [...qs];
+        renderSelectionPage();
+        setStep(2);
+      } else {
+        alert('추출 지연이 발생했습니다. 다시 한 번 눌러주세요!');
+        setStep(1);
+      }
+    } catch (err) {
+      stopLoading();
+      console.error(err);
+      alert('문항 추천 중 오류가 발생했습니다: ' + err.message);
+      setStep(1);
+    }
+  };
+
+  document.getElementById('nextPageBtn').onclick = async function() {
+    var t = document.getElementById('topic').value.trim();
+    var c = document.getElementById('category').value.trim();
+    var id = document.getElementById('ideaInput').value.trim();
+
+    setLoading('새로운 문항을 생성 중입니다...');
+
+    try {
+      const result = await callGas("fetchQuestionCandidates", {
+        topic: t,
+        category: c,
+        managerIdea: id,
+        excludeQuestions: allSeenQuestions
+      });
+
+      stopLoading();
+
+      const qs = result.data || [];
+      if (qs.length > 0) {
+        rawQuestions = qs;
+        allSeenQuestions = allSeenQuestions.concat(qs);
+        renderSelectionPage();
+        setStep(2);
+      } else {
+        alert('더 이상 생성할 새로운 문항이 없습니다.');
+        setStep(2);
+      }
+    } catch (err) {
+      stopLoading();
+      console.error(err);
+      alert('새 문항 생성 중 오류가 발생했습니다: ' + err.message);
+      setStep(2);
+    }
+  };
+
+  function renderSelectionPage() {
+    var list = document.getElementById('qList');
+    list.innerHTML = '';
+
+    rawQuestions.forEach(function(raw, i) {
+      var parts = String(raw || '').split('|');
+      var cleanQ = parts[0] || raw;
+      var key = getQuestionKey(raw);
+
+      if (cleanQ.includes("오류") || cleanQ.includes("못했습니다") || cleanQ.trim() === "") return;
+
+      var existing = selectedQuestions.find(q => q.key === key);
+      var chosenType = existing ? existing.type : 'scale5';
+      var isSelected = !!existing;
+
+      var div = document.createElement('div');
+      div.className = 'q-item' + (isSelected ? ' selected' : '');
+      div.innerHTML = `
+        <div class="q-top">
+          <div style="display:flex; align-items:center; gap:12px; flex:1;">
+            <div class="q-checkbox">${isSelected ? '✓' : ''}</div>
+            <div class="q-text">${cleanQ}</div>
+          </div>
+          <select id="type-sel-${i}" style="padding:4px; font-size:12px;">
+            <option value="scale5" ${chosenType === 'scale5' ? 'selected' : ''}>5점척도</option>
+            <option value="scale7" ${chosenType === 'scale7' ? 'selected' : ''}>7점척도</option>
+            <option value="short" ${chosenType === 'short' ? 'selected' : ''}>단답형</option>
+            <option value="paragraph" ${chosenType === 'paragraph' ? 'selected' : ''}>장문형</option>
+            <option value="multiple" ${chosenType === 'multiple' ? 'selected' : ''}>객관식</option>
+          </select>
+        </div>`;
+
+      div.onclick = function() {
+        var selectEl = document.getElementById('type-sel-' + i);
+        var selectedType = selectEl ? selectEl.value : 'scale5';
+        var idx = selectedQuestions.findIndex(q => q.key === key);
+
+        if (idx >= 0) {
+          selectedQuestions.splice(idx, 1);
+        } else {
+          selectedQuestions.push({ key: key, raw: raw, type: selectedType });
+        }
+
+        renderSelectionPage();
+      };
+
+      div.querySelector('select').onclick = function(e) {
+        e.stopPropagation();
+      };
+
+      div.querySelector('select').onchange = function(e) {
+        var target = selectedQuestions.find(q => q.key === key);
+        if (target) target.type = e.target.value;
+      };
+
+      list.appendChild(div);
+    });
+
+    document.getElementById('selCount').textContent = selectedQuestions.length + '개 선택';
+  }
+
+  document.getElementById('goPreviewBtn').onclick = function() {
+    if (selectedQuestions.length === 0) {
+      alert('문항을 선택하세요!');
+      return;
+    }
+
+    var container = document.getElementById('previewList');
+    container.innerHTML = '';
+
+    selectedQuestions.forEach(item => {
+      var p = String(item.raw || '').split('|');
+      addPreviewCard(
+        p[0] || "새 문항",
+        p[1] || "전혀 그렇지 않다",
+        p[2] || "매우 그렇다",
+        p[3] || "",
+        item.type || 'scale5'
+      );
+    });
+
+    initDragAndDrop();
+    refreshNumbers();
+    setStep(4);
+  };
+
+  function safeValue(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function addPreviewCard(q, l, r, h, type) {
+    var div = document.createElement('div');
+    div.className = 'preview-card';
+    div.dataset.type = type;
+
+    div.innerHTML = `
+      <div class="preview-card-header">
+        <span class="q-number-title">질문 <span class="n-val"></span></span>
+        <div class="header-actions">
+          <button class="btn-delete" type="button" onclick="this.closest('.preview-card').remove(); refreshNumbers();">문항 삭제</button>
+          <span class="drag-handle">☰ 순서 이동</span>
+        </div>
+      </div>
+      <span class="preview-label">문항 유형</span>
+      <select class="type-changer">
+        <option value="scale5" ${type === 'scale5' ? 'selected' : ''}>5점 척도</option>
+        <option value="scale7" ${type === 'scale7' ? 'selected' : ''}>7점 척도</option>
+        <option value="short" ${type === 'short' ? 'selected' : ''}>단답형</option>
+        <option value="paragraph" ${type === 'paragraph' ? 'selected' : ''}>장문형</option>
+        <option value="multiple" ${type === 'multiple' ? 'selected' : ''}>객관식</option>
+      </select>
+      <span class="preview-label">질문 텍스트</span>
+      <input type="text" class="ed-q" value="${safeValue(q)}">
+      <div class="scale-box ${String(type || '').startsWith('scale') ? '' : 'hidden'}">
+        <span class="preview-label">양 끝 레이블 (1점 | 만점)</span>
+        <div style="display:flex; gap:10px;">
+          <input type="text" class="ed-l" value="${safeValue(l)}">
+          <input type="text" class="ed-r" value="${safeValue(r)}">
+        </div>
+      </div>
+      <span class="preview-label">설명 가이드라인</span>
+      <textarea class="ed-h">${safeValue(h)}</textarea>`;
+
+    div.querySelector('.type-changer').onchange = function(e) {
+      var nt = e.target.value;
+      div.dataset.type = nt;
+      div.querySelector('.scale-box').classList.toggle('hidden', !nt.startsWith('scale'));
+    };
+
+    var handle = div.querySelector('.drag-handle');
+    handle.onmouseenter = () => div.draggable = true;
+    handle.onmouseleave = () => {
+      if (!div.classList.contains('dragging')) div.draggable = false;
+    };
+
+    document.getElementById('previewList').appendChild(div);
+  }
+
+  document.getElementById('downloadExcelBtn').onclick = function() {
+    var data = [];
+    var cards = document.querySelectorAll('.preview-card');
+
+    if (cards.length === 0) {
+      alert('다운로드할 문항이 존재하지 않습니다.');
+      return;
+    }
+
+    var typeMap = {
+      'scale5': '5점 척도',
+      'scale7': '7점 척도',
+      'short': '단답형',
+      'paragraph': '장문형',
+      'multiple': '객관식'
+    };
+
+    cards.forEach((card, i) => {
+      var rawType = card.querySelector('.type-changer').value;
+      var koreanType = typeMap[rawType] || '5점 척도';
+
+      data.push({
+        "번호": i + 1,
+        "질문 항목(내용)": card.querySelector('.ed-q').value,
+        "문항 유형": koreanType,
+        "평가용 가이드라인 주석": card.querySelector('.ed-h').value
+      });
+    });
+
+    var worksheet = XLSX.utils.json_to_sheet(data);
+    var workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "설문문항_가이드라인");
+
+    var docTitle = document.getElementById('formTitleFinal').value.trim();
+    var finalFileName = (docTitle ? docTitle : "에디_고도화_설문지") + ".xlsx";
+    XLSX.writeFile(workbook, finalFileName);
+  };
+
+  document.getElementById('finalizeBtn').onclick = async function() {
+    var data = [];
+
+    document.querySelectorAll('.preview-card').forEach(card => {
+      var type = card.querySelector('.type-changer').value;
+      var l = card.querySelector('.ed-l') ? card.querySelector('.ed-l').value : "";
+      var r = card.querySelector('.ed-r') ? card.querySelector('.ed-r').value : "";
+      var q = card.querySelector('.ed-q').value;
+      var h = card.querySelector('.ed-h').value;
+
+      data.push({
+        text: q + '|' + l + '|' + r + '|' + h,
+        type: type
+      });
+    });
+
+    if (data.length === 0) {
+      alert('생성할 문항이 없습니다.');
+      return;
+    }
+
+    setLoading('구글 폼 최종 제작 중...');
+
+    try {
+      const result = await callGas("createFinalGoogleForm", {
+        formTitle: document.getElementById('formTitleFinal').value.trim() || 'AI 맞춤형 진단 설문지',
+        questions: data
+      });
+
+      stopLoading();
+      document.getElementById('formLink').href = result.url;
+      setStep(3);
+    } catch (err) {
+      stopLoading();
+      console.error(err);
+      alert('구글 폼 생성 중 오류가 발생했습니다: ' + err.message);
+      setStep(4);
+    }
+  };
+
+  function refreshNumbers() {
+    document.querySelectorAll('.n-val').forEach((s, i) => s.textContent = (i + 1) + ".");
+  }
+
+  function initDragAndDrop() {
+    var container = document.getElementById('previewList');
+    var cards = container.querySelectorAll('.preview-card');
+
+    cards.forEach(card => {
+      card.ondragstart = () => {
+        card.classList.add('dragging');
+        document.addEventListener('dragover', autoScroll);
+      };
+
+      card.ondragend = () => {
+        card.classList.remove('dragging');
+        card.draggable = false;
+        document.removeEventListener('dragover', autoScroll);
+        clearInterval(dragScrollInterval);
+        refreshNumbers();
+      };
+
+      var handle = card.querySelector('.drag-handle');
+      handle.ontouchstart = function(e) {
+        card.classList.add('dragging');
+        card.style.position = 'relative';
+        card.style.zIndex = '1000';
+
+        document.addEventListener('touchmove', onTouchMove, { passive: false });
+        document.addEventListener('touchend', onTouchEnd);
+
+        function onTouchMove(e) {
+          e.preventDefault();
+          var moveTouch = e.touches[0];
+          var threshold = 150;
+          var speed = 12;
+
+          clearInterval(dragScrollInterval);
+
+          if (moveTouch.clientY < threshold) {
+            dragScrollInterval = setInterval(() => window.scrollBy(0, -speed), 16);
+          } else if (window.innerHeight - moveTouch.clientY < threshold) {
+            dragScrollInterval = setInterval(() => window.scrollBy(0, speed), 16);
+          }
+
+          var afterElement = getDragAfterElement(container, moveTouch.clientY);
+          var dragging = document.querySelector('.dragging');
+
+          if (dragging) {
+            if (afterElement == null) container.appendChild(dragging);
+            else container.insertBefore(dragging, afterElement);
+          }
+        }
+
+        function onTouchEnd() {
+          clearInterval(dragScrollInterval);
+          card.classList.remove('dragging');
+          card.style.position = '';
+          card.style.zIndex = '';
+          document.removeEventListener('touchmove', onTouchMove);
+          document.removeEventListener('touchend', onTouchEnd);
+          refreshNumbers();
+        }
+      };
+    });
+
+    container.ondragover = e => {
+      e.preventDefault();
+      var dragging = document.querySelector('.dragging');
+      if (!dragging) return;
+
+      var after = getDragAfterElement(container, e.clientY);
+      if (after == null) container.appendChild(dragging);
+      else container.insertBefore(dragging, after);
+    };
+  }
+
+  function autoScroll(e) {
+    var threshold = 150;
+    var speed = 15;
+
+    clearInterval(dragScrollInterval);
+
+    if (e.clientY < threshold) {
+      dragScrollInterval = setInterval(() => window.scrollBy(0, -speed), 16);
+    } else if (window.innerHeight - e.clientY < threshold) {
+      dragScrollInterval = setInterval(() => window.scrollBy(0, speed), 16);
+    }
+  }
+
+  function getDragAfterElement(container, y) {
+    var els = [...container.querySelectorAll('.preview-card:not(.dragging)')];
+    return els.reduce((closest, child) => {
+      var box = child.getBoundingClientRect();
+      var offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
+      return closest;
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
+  document.getElementById('backToSelectBtn').onclick = function() {
+    setStep(2);
+  };
+
+  document.getElementById('addBlankQBtn').onclick = function() {
+    addPreviewCard('', '전혀 그렇지 않다', '매우 그렇다', '', 'scale5');
+    initDragAndDrop();
+    refreshNumbers();
+    window.scrollBy({ top: 300, behavior: 'smooth' });
+  };
+
+  function setStep(n) {
+    document.getElementById('step1').style.display = (n === 1) ? 'block' : 'none';
+    document.getElementById('step2').style.display = (n === 2) ? 'block' : 'none';
+    document.getElementById('stepPreview').style.display = (n === 4) ? 'block' : 'none';
+    document.getElementById('step3').style.display = (n === 3) ? 'block' : 'none';
+
+    var dotNum = (n === 4) ? 2 : (n === 0 ? 1 : n);
+
+    ['sd1', 'sd2', 'sd3'].forEach((id, i) => {
+      var el = document.getElementById(id);
+      if (el) el.className = 'step-dot ' + (i + 1 < dotNum ? 'done' : (i + 1 === dotNum ? 'active' : ''));
+    });
+
+    ['sl1', 'sl2'].forEach((id, i) => {
+      var el = document.getElementById(id);
+      if (el) el.className = 'step-line ' + (i + 1 < dotNum ? 'done' : '');
+    });
+  }
+
+  function showLoader(m) {
+    document.getElementById('loaderText').textContent = m;
+    document.getElementById('loader').style.display = 'block';
+  }
+
+  function hideLoader() {
+    document.getElementById('loader').style.display = 'none';
+  }
+
+  document.getElementById('resetBtn').onclick = () => location.reload();
+
+  setStep(1);
+</script>
+</body>
+</html>
