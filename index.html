@@ -163,27 +163,35 @@
   var allSeenQuestions = [];
 
   async function callGas(action, payload) {
-    const response = await fetch(GAS_URL, {
-      method: "POST",
-      // GAS에서 CORS/preflight 꼬임 줄이려고 Content-Type은 일부러 지정하지 않습니다.
-      body: JSON.stringify({ action, ...payload }),
-      redirect: "follow"
-    });
+  const response = await fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify({ action, ...payload }),
+    redirect: "follow"
+  });
 
-    const text = await response.text();
+  const text = await response.text();
 
-    try {
-      const json = JSON.parse(text);
-      if (!json.success) {
-        throw new Error(json.message || "GAS 처리 중 오류가 발생했습니다.");
-      }
-      return json;
-    } catch (error) {
-      console.error("GAS raw response:", text);
-      throw error;
-    }
+  console.log("HTTP 상태:", response.status);
+  console.log("GAS 응답 원문:", text);
+
+  if (!text || text.trim() === "") {
+    throw new Error("GAS에서 빈 응답이 왔습니다. GAS doPost가 return을 못 했거나, 배포 URL/권한 문제입니다.");
   }
 
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch (e) {
+    throw new Error("GAS 응답이 JSON이 아닙니다. 콘솔의 'GAS 응답 원문'을 확인하세요.");
+  }
+
+  if (!json.success) {
+    throw new Error(json.message || "GAS 처리 중 오류가 발생했습니다.");
+  }
+
+  return json;
+}
+ 
   function getQuestionKey(raw) {
     return String(raw || "").split("|")[0].trim();
   }
